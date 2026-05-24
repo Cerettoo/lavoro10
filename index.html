@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>Just Justice - Super Arts Edition</title>
+
+<style>
+body {
+    margin: 0;
+    background: #030305;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    overflow: hidden;
+    font-family: 'Impact', 'Arial Black', sans-serif;
+}
+
+#game-container {
+    position: relative;
+    width: 1024px;
+    height: 576px;
+    border: 5px solid #333;
+    background: #0d0e15;
+    box-shadow: 0px 0px 40px rgba(0, 0, 0, 0.8);
+    border-radius: 4px;
+    user-select: none;
+}
+
+canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+/* ==========================================================================
+   INTERFACCIA STILE STREET FIGHTER (UI)
+   ========================================================================== */
+#ui {
+    position: absolute;
+    top: 20px;
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 100px 1fr;
+    align-items: center;
+    pointer-events: none;
+    padding: 0 30px;
+    box-sizing: border-box;
+}
+
+.player-side {
+    display: flex;
+    flex-direction: column;
+}
+.player-side.right {
+    align-items: flex-end;
+}
+
+.name-tag {
+    color: #fff;
+    font-size: 22px;
+    letter-spacing: 2px;
+    text-shadow: 2px 2px 0px #000;
+    margin-bottom: 4px;
+}
+.left .name-tag { color: #00f3ff; text-shadow: 0 0 10px rgba(0,243,255,0.5); }
+.right .name-tag { color: #ff0055; text-shadow: 0 0 10px rgba(255,0,85,0.5); }
+
+/* Barre della vita inclinate */
+.health-bar-container {
+    width: 380px;
+    height: 24px;
+    background: #333;
+    border: 3px solid #fff;
+    box-shadow: 0px 4px 10px rgba(0,0,0,0.5);
+    overflow: hidden;
+    transform: skewX(-15deg);
+    position: relative;
+}
+
+.health-inner {
+    height: 100%;
+    width: 100%;
+    background: #fffb00;
+    transition: width 0.15s ease-out;
+}
+#hp1 { background: linear-gradient(90deg, #00f3ff, #0055ff); float: right; }
+#hp2 { background: linear-gradient(90deg, #ff0055, #ff7700); float: left; }
+
+/* Indicatori di Round */
+.round-dots {
+    display: flex;
+    gap: 10px;
+    margin-top: 8px;
+}
+.dot {
+    width: 14px;
+    height: 14px;
+    background: rgba(255, 255, 255, 0.2);
+    border: 2px solid #fff;
+    border-radius: 50%;
+    box-shadow: inset 0 0 5px #000;
+    transition: background 0.3s, box-shadow 0.3s;
+}
+.left .dot.active { background: #00f3ff; box-shadow: 0 0 10px #00f3ff; }
+.right .dot.active { background: #ff0055; box-shadow: 0 0 10px #ff0055; }
+
+/* Barra della Super (EX Meter) in Basso */
+#super-ui {
+    position: absolute;
+    bottom: 20px;
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    padding: 0 30px;
+    box-sizing: border-box;
+    pointer-events: none;
+}
+
+.super-bar-container {
+    width: 300px;
+    height: 16px;
+    background: #111;
+    border: 2px solid #fff;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.8);
+    position: relative;
+    transform: skewX(-15deg);
+}
+
+.super-inner {
+    height: 100%;
+    width: 0%;
+    transition: width 0.2s ease-out;
+}
+#sp1 { background: linear-gradient(90deg, #00f3ff, #00ffea); float: left; }
+#sp2 { background: linear-gradient(90deg, #ff0055, #ff0000); float: right; }
+
+.super-text {
+    position: absolute;
+    top: -22px;
+    font-size: 16px;
+    color: #fffb00;
+    text-shadow: 1px 1px 0 #000;
+    display: none;
+    letter-spacing: 1px;
+}
+#sp1-text { left: 0; }
+#sp2-text { right: 0; }
+
+@keyframes flashBar {
+    0% { filter: brightness(1); }
+    50% { filter: brightness(1.8); }
+    100% { filter: brightness(1); }
+}
+.super-ready {
+    animation: flashBar 0.5s infinite;
+}
+
+/* Timer Centrale */
+#timer-box {
+    text-align: center;
+    background: linear-gradient(#222, #111);
+    border: 3px solid #fff;
+    color: #fffb00;
+    font-size: 38px;
+    height: 50px;
+    line-height: 46px;
+    width: 70px;
+    margin: 0 auto;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    border-radius: 4px;
+    text-shadow: 2px 2px 0 #000;
+}
+
+/* Messaggi Sovrapposti */
+#announcer {
+    position: absolute;
+    top: 35%;
+    width: 100%;
+    text-align: center;
+    color: #fff;
+    font-size: 50px;
+    text-shadow: 4px 4px 0px #000;
+    display: none;
+    z-index: 10;
+}
+
+#sub-announcer {
+    font-size: 20px;
+    color: #00f3ff;
+    text-shadow: 2px 2px 0px #000;
+    margin-top: 15px;
+    letter-spacing: 2px;
+}
+
+.justice-text { color: #00f3ff; text-shadow: 0 0 20px #00f3ff, 3px 3px 0 #000; }
+.communism-text { color: #ff0055; text-shadow: 0 0 20px #ff0055, 3px 3px 0 #000; }
+</style>
+</head>
+
+<body>
+
+<div id="game-container">
+    <div id="ui">
+        <div class="player-side left">
+            <div class="name-tag">GIUSTIZIA</div>
+            <div class="health-bar-container"><div id="hp1" class="health-inner"></div></div>
+            <div class="round-dots">
+                <div class="dot" id="p1-r1"></div>
+                <div class="dot" id="p1-r2"></div>
+            </div>
+        </div>
+
+        <div id="timer-box">99</div>
+
+        <div class="player-side right">
+            <div class="name-tag">COMUNISMO</div>
+            <div class="health-bar-container"><div id="hp2" class="health-inner"></div></div>
+            <div class="round-dots">
+                <div class="dot" id="ai-r1"></div>
+                <div class="dot" id="ai-r2"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="super-ui">
+        <div class="super-bar-container">
+            <div id="sp1-text" class="super-text">SUPER PRONTA! (Premi E)</div>
+            <div id="sp1" class="super-inner"></div>
+        </div>
+        <div class="super-bar-container" style="transform: skewX(15deg);">
+            <div id="sp2-text" class="super-text">SUPER PRONTA!</div>
+            <div id="sp2" class="super-inner"></div>
+        </div>
+    </div>
+
+    <div id="announcer">
+        <div id="main-msg">ROUND 1</div>
+        <div id="sub-announcer">FIGHT!</div>
+    </div>
+
+    <canvas id="c"></canvas>
+</div>
+
+<script>
+const canvas = document.getElementById("c");
+const ctx = canvas.getContext("2d");
+
+canvas.width = 1024;
+canvas.height = 576;
+
+const GROUND = canvas.height - 40; 
+const gravity = 0.8;              
+
+// DATI PARTITA E SUPER METER
+let currentRound = 1;
+let p1Wins = 0;
+let aiWins = 0;
+let roundTime = 99;
+let timerInterval = null;
+
+const MAX_SUPER = 150; // Quantità di danni per caricare la mossa
+let p1Super = 0;
+let aiSuper = 0;
+
+let gameOver = false;
+let roundActive = false; 
+let screenShake = 0;
+let particles = [];
+let projectiles = [];
+
+function triggerShake(intensity) { screenShake = intensity; }
+
+/* ==========================================================================
+   PARTICELLE E PROIETTILI (SUPER ATTACCHI)
+   ========================================================================== */
+class Particle {
+    constructor(x, y, color) {
+        this.x = x; this.y = y;
+        this.vx = (Math.random() - 0.5) * 14;
+        this.vy = (Math.random() - 0.5) * 14 - 3;
+        this.radius = Math.random() * 3 + 1;
+        this.alpha = 1;
+        this.decay = Math.random() * 0.03 + 0.02;
+        this.color = color;
+    }
+    update() {
+        this.x += this.vx; this.y += this.vy;
+        this.vy += 0.2; this.alpha -= this.decay;
+    }
+    draw() {
+        ctx.save(); ctx.globalAlpha = this.alpha;
+        ctx.fillStyle = this.color; ctx.shadowBlur = 10; ctx.shadowColor = this.color;
+        ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+    }
+}
+
+function spawnParticles(x, y, color, count = 12) {
+    for (let i = 0; i < count; i++) particles.push(new Particle(x, y, color));
+}
+
+class Projectile {
+    constructor(x, y, vx, type, owner) {
+        this.x = x;
+        this.y = y;
+        this.vx = vx;
+        this.type = type; // "book" o "hammer"
+        this.owner = owner; // "p1" o "ai"
+        this.angle = 0;
+        this.active = true;
+    }
+    update() {
+        this.x += this.vx;
+        this.angle += (this.vx > 0 ? 0.3 : -0.3); // Effetto rotazione
+    }
+    draw() {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.angle);
+
+        if (this.type === "book") {
+            // Disegna il "Libro di Storia"
+            ctx.shadowBlur = 20; ctx.shadowColor = "#00f3ff";
+            ctx.fillStyle = "#5c2e0e"; // Copertina
+            ctx.fillRect(-25, -18, 50, 36);
+            ctx.fillStyle = "#fff"; // Pagine
+            ctx.fillRect(-20, -14, 45, 28);
+            ctx.fillStyle = "#000";
+            ctx.font = "14px 'Arial Black'";
+            ctx.textAlign = "center"; ctx.textBaseline = "middle";
+            ctx.fillText("STORIA", 2, 0);
+        } else {
+            // Disegna il "Martello Industriale"
+            ctx.shadowBlur = 20; ctx.shadowColor = "#ff0055";
+            ctx.fillStyle = "#333"; // Manico
+            ctx.fillRect(-35, -5, 70, 10);
+            ctx.fillStyle = "#aaa"; // Testa di metallo
+            ctx.fillRect(15, -20, 25, 40);
+            // Incandescenza
+            ctx.fillStyle = "rgba(255, 0, 85, 0.5)";
+            ctx.fillRect(15, -20, 25, 40);
+        }
+
+        ctx.restore();
+    }
+}
+
+function clamp(obj) { obj.x = Math.max(0, Math.min(canvas.width - obj.w, obj.x)); }
+
+/* ==========================================================================
+   SISTEMA COMBATTENTI
+   ========================================================================== */
+class Fighter {
+    constructor(x, color, isAI) {
+        this.startX = x; this.x = x; this.y = GROUND - 120;
+        this.vx = 0; this.vy = 0;
+        this.w = 60; this.h = 120;
+        this.color = color;
+        this.hp = 200; this.maxHp = 200;
+        this.isAI = isAI;
+
+        this.isAttacking = false; this.atkType = ""; this.hasHit = false;
+        this.block = false; this.blockCount = 3; this.blockBroken = false;
+        this.parry = false; this.stun = false; this.frame = 0;            
+    }
+
+    reset() {
+        this.x = this.startX; this.y = GROUND - this.h;
+        this.vx = 0; this.vy = 0;
+        this.hp = this.maxHp;
+        this.isAttacking = false; this.hasHit = false;
+        this.block = false; this.blockCount = 3; this.blockBroken = false;
+        this.parry = false; this.stun = false;
+    }
+
+    draw() {
+        this.frame += 0.15;
+        let b = Math.sin(this.frame) * 4;
+
+        ctx.save();
+        ctx.shadowBlur = 15; ctx.shadowColor = this.color;
+        ctx.strokeStyle = this.stun ? "#ffaa00" : this.color;
+        ctx.lineWidth = 5; ctx.lineCap = "round";
+
+        if (this.stun) {
+            ctx.strokeStyle = "#ffea00"; ctx.shadowColor = "#ffea00";
+            ctx.beginPath(); ctx.arc(this.x + 30 + Math.sin(this.frame*2)*10, this.y - 45, 4, 0, Math.PI*2); ctx.stroke();
+        }
+
+        ctx.beginPath(); ctx.arc(this.x + 30, this.y - 20 + b, 16, 0, Math.PI * 2); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(this.x + 30, this.y + b); ctx.lineTo(this.x + 30, this.y + 60 + b / 2); ctx.stroke();
+
+        if (this.isAttacking) {
+            ctx.strokeStyle = "#fff"; ctx.shadowColor = "#fff"; ctx.shadowBlur = 25; ctx.lineWidth = 7;
+            ctx.beginPath(); ctx.moveTo(this.x + 30, this.y + 20 + b);
+            let tx = this.atkType == "left" ? -50 : this.atkType == "right" ? 110 : 30;
+            let ty = this.atkType == "up" ? -50 : this.atkType == "down" ? 90 : 20;
+            ctx.lineTo(this.x + tx, this.y + ty); ctx.stroke();
+        } else {
+            ctx.beginPath(); ctx.moveTo(this.x + 30, this.y + 20 + b);
+            ctx.lineTo(this.isAI ? this.x : this.x + 60, this.y + 30); ctx.stroke();
+        }
+
+        ctx.strokeStyle = this.stun ? "#ffaa00" : this.color; ctx.shadowColor = this.stun ? "#ffaa00" : this.color;
+        ctx.lineWidth = 5;
+        ctx.beginPath(); ctx.moveTo(this.x + 30, this.y + 60 + b / 2); ctx.lineTo(this.x + 10, this.y + 120);
+        ctx.moveTo(this.x + 30, this.y + 60 + b / 2); ctx.lineTo(this.x + 50, this.y + 120); ctx.stroke();
+
+        if (this.block && !this.blockBroken) {
+            ctx.strokeStyle = this.parry ? "#ffe600" : "#00f3ff"; ctx.shadowColor = ctx.strokeStyle;
+            ctx.shadowBlur = 25; ctx.lineWidth = 4;
+            ctx.beginPath();
+            let startAngle = this.isAI ? Math.PI * 0.5 : Math.PI * 1.5;
+            let endAngle = this.isAI ? Math.PI * 1.5 : Math.PI * 0.5;
+            ctx.arc(this.x + (this.isAI ? 0 : 60), this.y + 40, 45, startAngle, endAngle); ctx.stroke();
+        }
+
+        ctx.restore();
+    }
+
+    update() {
+        if (this.stun) {
+            this.vx *= 0.8; this.x += this.vx; this.y += this.vy;
+            if (this.y + this.h >= GROUND) { this.vy = 0; this.y = GROUND - this.h; } else { this.vy += gravity; }
+            clamp(this); this.draw(); return;
+        }
+
+        this.x += this.vx; this.y += this.vy;
+        if (this.y + this.h + this.vy >= GROUND) { this.vy = 0; this.y = GROUND - this.h; } 
+        else { this.vy += gravity; }
+
+        clamp(this); this.draw();
+    }
+
+    attack(t) {
+        if (!roundActive || this.isAttacking || this.stun || this.block || gameOver) return;
+        this.isAttacking = true; this.hasHit = false; this.atkType = t;
+        setTimeout(() => { this.isAttacking = false; this.atkType = ""; }, 200);
+    }
+}
+
+let p1 = new Fighter(200, "#00f3ff", false);
+let ai = new Fighter(764, "#ff0055", true);
+
+const keys = {};
+
+window.addEventListener("keydown", (e) => {
+    let k = e.key.toLowerCase();
+    if (keys[k]) return; keys[k] = true;
+
+    if (!roundActive || gameOver) {
+        if (k == "r") location.reload();
+        return;
+    }
+
+    if (k == "w" && p1.vy == 0 && !p1.stun) p1.vy = -18;
+    if (k == "j") p1.attack("left");
+    if (k == "i") p1.attack("up");
+    if (k == "k") p1.attack("right");
+    if (k == "m") p1.attack("down");
+
+    // Lancio della Mossa Speciale (SUPER)
+    if (k == "e" && p1Super >= MAX_SUPER && !p1.stun && !p1.isAttacking) {
+        p1Super = 0;
+        updateSuperUI();
+        p1.attack("up"); // Anima il braccio
+        projectiles.push(new Projectile(p1.x + 60, p1.y + 40, 15, "book", "p1"));
+        spawnParticles(p1.x + 60, p1.y + 40, "#00f3ff", 20);
+        triggerShake(5);
+    }
+
+    if (k == "f" && !p1.stun && !p1.blockBroken) {
+        p1.block = true; p1.parry = true; 
+        setTimeout(() => { if (keys["f"]) p1.parry = false; }, 120);
+    }
+});
+
+window.addEventListener("keyup", (e) => {
+    let k = e.key.toLowerCase(); keys[k] = false;
+    if (k == "f") { p1.block = false; p1.parry = false; }
+});
+
+/* ==========================================================================
+   LOGICHE DI GIOCO, DANNI E AGGIORNAMENTO UI
+   ========================================================================== */
+function hit(a, b) {
+    if (!a.isAttacking || a.hasHit) return false;
+    let reach = 125;
+    let dx = Math.abs((a.x + 30) - (b.x + 30));
+    return dx < reach && Math.abs(a.y - b.y) < 100;
+}
+
+function updateSuperUI() {
+    let p1Percent = Math.min(100, (p1Super / MAX_SUPER) * 100);
+    let aiPercent = Math.min(100, (aiSuper / MAX_SUPER) * 100);
+    
+    let sp1 = document.getElementById("sp1");
+    let sp2 = document.getElementById("sp2");
+
+    sp1.style.width = p1Percent + "%";
+    sp2.style.width = aiPercent + "%";
+
+    // Effetti grafici quando la Super è pronta
+    if (p1Super >= MAX_SUPER) {
+        sp1.classList.add("super-ready");
+        document.getElementById("sp1-text").style.display = "block";
+    } else {
+        sp1.classList.remove("super-ready");
+        document.getElementById("sp1-text").style.display = "none";
+    }
+
+    if (aiSuper >= MAX_SUPER) {
+        sp2.classList.add("super-ready");
+        document.getElementById("sp2-text").style.display = "block";
+    } else {
+        sp2.classList.remove("super-ready");
+        document.getElementById("sp2-text").style.display = "none";
+    }
+}
+
+function addSuperMeter(playerType, amount) {
+    if (playerType === "p1") {
+        p1Super += amount;
+        if (p1Super > MAX_SUPER) p1Super = MAX_SUPER;
+    } else {
+        aiSuper += amount;
+        if (aiSuper > MAX_SUPER) aiSuper = MAX_SUPER;
+    }
+    updateSuperUI();
+}
+
+function aiLogic() {
+    if (!roundActive || gameOver || ai.stun) return;
+
+    let dist = ai.x - p1.x;
+    let absDist = Math.abs(dist);
+    let direzioneP1 = dist > 0 ? -1 : 1; 
+
+    // Lancio Super da parte dell'IA
+    if (aiSuper >= MAX_SUPER && absDist > 150 && Math.random() > 0.98) {
+        aiSuper = 0;
+        updateSuperUI();
+        ai.attack("up");
+        projectiles.push(new Projectile(ai.x - 20, ai.y + 40, -15, "hammer", "ai"));
+        spawnParticles(ai.x, ai.y + 40, "#ff0055", 20);
+        triggerShake(5);
+        return;
+    }
+
+    if (p1.isAttacking && absDist < 140) {
+        if (Math.random() > 0.60 && !ai.blockBroken) {
+            ai.block = true; ai.parry = Math.random() > 0.7;
+            setTimeout(() => { ai.block = false; ai.parry = false; }, 250);
+            return; 
+        } 
+        else if (Math.random() > 0.8) {
+            ai.vx = direzioneP1 * -6;
+            if (ai.vy == 0) ai.vy = -12;
+            return;
+        }
+    }
+
+    let distanzaIdeale = (ai.hp < 60) ? 160 : 95; 
+
+    if (absDist > distanzaIdeale + 20) {
+        ai.vx = direzioneP1 * 4.5;
+    } else if (absDist < distanzaIdeale - 20) {
+        ai.vx = direzioneP1 * -4;
+    } else {
+        ai.vx = 0;
+        if (Math.random() > 0.88) ai.attack(dist > 0 ? "left" : "right");
+    }
+}
+
+function drawBackground() {
+    let gradLeft = ctx.createLinearGradient(0, 0, canvas.width/2, 0);
+    gradLeft.addColorStop(0, "#050b14"); gradLeft.addColorStop(1, "#090a10");
+    ctx.fillStyle = gradLeft; ctx.fillRect(0, 0, canvas.width/2, canvas.height);
+
+    let gradRight = ctx.createLinearGradient(canvas.width/2, 0, canvas.width, 0);
+    gradRight.addColorStop(0, "#090a10"); gradRight.addColorStop(1, "#140505");
+    ctx.fillStyle = gradRight; ctx.fillRect(canvas.width/2, 0, canvas.width/2, canvas.height);
+
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.04)"; ctx.lineWidth = 2;
+    for (let i = 0; i < canvas.width; i += 40) { ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke(); }
+    for (let j = 0; j < canvas.height; j += 40) { ctx.beginPath(); ctx.moveTo(0, j); ctx.lineTo(canvas.width, j); ctx.stroke(); }
+
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.1)";
+    ctx.beginPath(); ctx.moveTo(canvas.width/2, 0); ctx.lineTo(canvas.width/2, canvas.height); ctx.stroke();
+
+    ctx.save();
+    ctx.strokeStyle = "#1f2438"; ctx.lineWidth = 8;
+    ctx.beginPath(); ctx.moveTo(0, GROUND); ctx.lineTo(canvas.width, GROUND); ctx.stroke();
+
+    ctx.lineWidth = 2; ctx.shadowBlur = 15;
+    ctx.strokeStyle = "#00f3ff"; ctx.shadowColor = "#00f3ff";
+    ctx.beginPath(); ctx.moveTo(0, GROUND); ctx.lineTo(canvas.width/2, GROUND); ctx.stroke();
+    ctx.strokeStyle = "#ff0055"; ctx.shadowColor = "#ff0055";
+    ctx.beginPath(); ctx.moveTo(canvas.width/2, GROUND); ctx.lineTo(canvas.width, GROUND); ctx.stroke();
+    ctx.restore();
+}
+
+function startTimer() {
+    clearInterval(timerInterval);
+    timerInterval = setInterval(() => {
+        if (roundActive && !gameOver) {
+            roundTime--;
+            document.getElementById("timer-box").innerText = roundTime;
+            if (roundTime <= 0) endRound(p1.hp === ai.hp ? "pareggio" : (p1.hp > ai.hp ? "p1" : "ai"));
+        }
+    }, 1000);
+}
+
+function initRound() {
+    roundActive = false;
+    p1.reset(); ai.reset();
+    projectiles = []; // Svuota lo schermo dalle Super
+    roundTime = 99;
+    document.getElementById("timer-box").innerText = roundTime;
+    
+    document.getElementById("hp1").style.width = "100%";
+    document.getElementById("hp2").style.width = "100%";
+    updateSuperUI(); // La super non si azzera tra i round, si aggiorna solo visivamente
+
+    let announcer = document.getElementById("announcer");
+    let mainMsg = document.getElementById("main-msg");
+    let subMsg = document.getElementById("sub-announcer");
+
+    mainMsg.className = "";
+    mainMsg.innerText = "ROUND " + currentRound;
+    subMsg.innerText = "READY... FIGHT!";
+    announcer.style.display = "block";
+
+    setTimeout(() => {
+        announcer.style.display = "none";
+        roundActive = true;
+        startTimer();
+    }, 2000);
+}
+
+function convertRoundNumber(num) { return num === 1 ? "primo" : (num === 2 ? "secondo" : "terzo"); }
+
+function endRound(winner) {
+    roundActive = false;
+    clearInterval(timerInterval);
+    
+    let announcer = document.getElementById("announcer");
+    let mainMsg = document.getElementById("main-msg");
+    let subMsg = document.getElementById("sub-announcer");
+    let textRound = convertRoundNumber(currentRound);
+
+    if (winner === "p1") {
+        p1Wins++; document.getElementById(`p1-r${p1Wins}`).classList.add("active");
+        mainMsg.innerText = `${textRound} round vinto dalla giustizia`.toUpperCase(); mainMsg.className = "justice-text";
+    } else if (winner === "ai") {
+        aiWins++; document.getElementById(`ai-r${aiWins}`).classList.add("active");
+        mainMsg.innerText = `il comunismo ha vinto il ${textRound} round`.toUpperCase(); mainMsg.className = "communism-text";
+    } else { mainMsg.innerText = "PAREGGIO!"; }
+
+    subMsg.innerText = "CARICAMENTO PROSSIMO ROUND...";
+    announcer.style.display = "block";
+
+    setTimeout(() => {
+        if (p1Wins === 2 || aiWins === 2) {
+            if (p1Wins === 2) { mainMsg.innerText = "LA GIUSTIZIA HA VINTO"; mainMsg.className = "justice-text"; } 
+            else { mainMsg.innerText = "IL COMUNISMO HA VINTO"; mainMsg.className = "communism-text"; }
+            subMsg.innerText = "PREMI 'R' PER RICOMINCIARE LA CAMPAGNA";
+            gameOver = true;
+            // Se si vince o si perde il best of 3, la super e i round si azzereranno al ricaricamento (F5 / location.reload)
+        } else {
+            currentRound++;
+            initRound();
+        }
+    }, 3000);
+}
+
+function loop() {
+    requestAnimationFrame(loop);
+
+    ctx.save();
+    if (screenShake > 0) {
+        ctx.translate((Math.random() - 0.5) * screenShake, (Math.random() - 0.5) * screenShake);
+        screenShake *= 0.9;
+        if (screenShake < 0.5) screenShake = 0;
+    }
+
+    drawBackground();
+
+    if (roundActive && !p1.stun) {
+        p1.vx = 0;
+        if (keys.a) p1.vx = -6.5;
+        if (keys.d) p1.vx = 6.5;
+    } else if (!roundActive) {
+        p1.vx = 0; ai.vx = 0;
+    }
+
+    aiLogic();
+
+    p1.update();
+    ai.update();
+
+    // Calcolo collisioni attacchi base
+    if (hit(p1, ai)) applyDamage(ai, 25, "p1", false);
+    if (hit(ai, p1)) applyDamage(p1, 20, "ai", false);
+
+    // Aggiornamento e collisioni Proiettili (SUPER)
+    for (let i = projectiles.length - 1; i >= 0; i--) {
+        let p = projectiles[i];
+        p.update();
+        p.draw();
+
+        let target = p.owner === "p1" ? ai : p1;
+        let dx = Math.abs(p.x - (target.x + 30));
+        let dy = Math.abs(p.y - (target.y + 40));
+
+        if (dx < 40 && dy < 70 && target.hp > 0 && p.active) {
+            p.active = false;
+            projectiles.splice(i, 1);
+            applyDamage(target, 60, p.owner, true); // 60 danni, true = mossa super (rompe scudo)
+        } else if (p.x < -100 || p.x > canvas.width + 100) {
+            projectiles.splice(i, 1); // Rimuovi se esce dallo schermo
+        }
+    }
+
+    // Aggiornamento particelle
+    for (let i = particles.length - 1; i >= 0; i--) {
+        particles[i].update();
+        if (particles[i].alpha <= 0) particles.splice(i, 1); else particles[i].draw();
+    }
+
+    ctx.restore();
+}
+
+function applyDamage(target, dmg, attackerStr, isSuper) {
+    let attacker = attackerStr === "p1" ? p1 : ai;
+    let attackerColor = attackerStr === "p1" ? "#00f3ff" : "#ff0055";
+    let targetColor = attackerStr === "p1" ? "#ff0055" : "#00f3ff";
+
+    if (!isSuper) attacker.hasHit = true;
+    let midX = target.x + 30;
+
+    // Se il difensore sta bloccando e non è una super mossa
+    if (target.block && !target.blockBroken && !isSuper) {
+        if (target.parry) {
+            attacker.stun = true; attacker.vx = attackerStr === "p1" ? -8 : 8;
+            triggerShake(10); spawnParticles(midX, target.y + 30, "#ffe600", 20);
+            setTimeout(() => attacker.stun = false, 600);
+        } else {
+            target.blockCount--; triggerShake(6); spawnParticles(midX, target.y + 30, attackerColor, 10);
+            if (target.blockCount <= 0) {
+                target.block = false; target.blockBroken = true; target.stun = true;
+                spawnParticles(target.x + 30, target.y + 30, "#ff0000", 25);
+                setTimeout(() => { target.stun = false; }, 400);
+                setTimeout(() => { target.blockCount = 3; target.blockBroken = false; }, 4000);
+            }
+        }
+    } else {
+        // Colpo a segno (o Super che spacca la difesa)
+        target.hp -= dmg;
+        triggerShake(isSuper ? 35 : 18); // Tremore enorme per la super
+        target.vx = attackerStr === "p1" ? (isSuper ? 15 : 7) : (isSuper ? -15 : -7);
+        target.stun = true; 
+        setTimeout(() => target.stun = false, isSuper ? 800 : 200); // Stordimento extra per la super
+
+        spawnParticles(target.x + 30, target.y + 20, targetColor, isSuper ? 50 : 25);
+        document.getElementById(attackerStr === "p1" ? "hp2" : "hp1").style.width = Math.max(0, (target.hp / target.maxHp) * 100) + "%";
+        
+        // Aggiungi potenza alla barra super dell'attaccante solo sui colpi normali
+        if (!isSuper) addSuperMeter(attackerStr, dmg);
+
+        if (target.hp <= 0 && roundActive) endRound(attackerStr);
+    }
+}
+
+initRound();
+loop();
+</script>
+
+</body>
+</html>
